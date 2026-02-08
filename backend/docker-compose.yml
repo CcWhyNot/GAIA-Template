@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: gaia_db
+    environment:
+      POSTGRES_USER: gaia_user
+      POSTGRES_PASSWORD: gaia_password
+      POSTGRES_DB: gaia_db
+    ports:
+      - "5455:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gaia_user -d gaia_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gaia_backend
+    environment:
+      DATABASE_URL: postgresql://gaia_user:gaia_password@db:5432/gaia_db
+      SECRET_KEY: dev-secret-key
+      DEBUG: "True"
+      ENVIRONMENT: development
+    ports:
+      - "8005:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: gaia_network
