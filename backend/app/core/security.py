@@ -3,11 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthCredentials, HTTPBearer
-
-# For now, use a simple security scheme
-security = HTTPBearer(auto_error=False)
+from fastapi import Depends, Header, HTTPException, status
 
 
 class UserContext:
@@ -19,10 +15,10 @@ class UserContext:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthCredentials] = Depends(security),
+    authorization: Optional[str] = Header(None),
 ) -> Optional[UserContext]:
     """
-    [Feature: News Management] Extract current user from request headers.
+    [Feature: News Management] Extract current user from Authorization header.
 
     For development/testing, accepts a simple Bearer token with format:
     Bearer <user_id>:<role>
@@ -30,16 +26,21 @@ async def get_current_user(
     In production, this would validate JWT tokens.
 
     Args:
-        credentials: HTTP Bearer credentials.
+        authorization: Authorization header.
 
     Returns:
         UserContext if authenticated, None if not.
     """
-    if not credentials:
+    if not authorization:
         return None
 
-    token = credentials.credentials
     try:
+        # Parse Bearer token
+        if not authorization.startswith("Bearer "):
+            return None
+
+        token = authorization.replace("Bearer ", "").strip()
+
         # Simple token format: user_id:role
         parts = token.split(":")
         if len(parts) != 2:
